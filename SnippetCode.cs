@@ -90,6 +90,7 @@ public static class Snippet
     /// <param name="direction">Cone direction</param>
     /// <param name="maxDistance">Maximum cone distance</param>
     /// <param name="coneAngle">Cone angle</param>
+    /// <returns>An array of RaycastHit containing all hits within the specified cone-shaped region.</returns>
     public static RaycastHit[] ConeCastAll(this Vector3 origin, float maxRadius, Vector3 direction, float maxDistance, float coneAngle, int layer = Physics.DefaultRaycastLayers)
     {
         RaycastHit[] sphereCastHits = Physics.SphereCastAll(origin, maxRadius, direction, maxDistance, layer, QueryTriggerInteraction.Ignore);
@@ -285,7 +286,7 @@ public static class Snippet
     }
 
     /// <summary>
-    /// Return the farest creature inside a cone radius
+    /// Return the farthest creature inside a cone radius
     /// </summary>
     /// <param name="position">Position to check from</param>
     /// <param name="radius">Radius of the check</param>
@@ -296,7 +297,7 @@ public static class Snippet
     /// <param name="targetPlayer">Target the player</param>
     /// <param name="creatureToExclude">Creature to exclude in the check</param>
     /// <returns></returns>
-    public static Creature FarestCreatureInConeRadius(this Vector3 position, float radius, Vector3 directionOfCone, float angleOfCone, bool targetAliveCreature = true, bool targetDeadCreature = false, bool targetPlayer = false, Creature creatureToExclude = null)
+    public static Creature FarthestCreatureInConeRadius(this Vector3 position, float radius, Vector3 directionOfCone, float angleOfCone, bool targetAliveCreature = true, bool targetDeadCreature = false, bool targetPlayer = false, Creature creatureToExclude = null)
     {
         List<Creature> creatureDetected = new List<Creature>();
         for (int i = Creature.allActive.Count - 1; i >= 0; i--)
@@ -467,12 +468,12 @@ public static class Snippet
         return lastCreature;
     }
     /// <summary>
-    /// Return the farest creature from a list from a position
+    /// Return the farthest creature from a list from a position
     /// </summary>
     /// <param name="creatures">List of Creatures</param>
     /// <param name="position">Position to check from</param>
     /// <returns></returns>
-    public static Creature FarestCreatureInListFromPosition(this List<Creature> creatures, Vector3 position)
+    public static Creature FarthestCreatureInListFromPosition(this List<Creature> creatures, Vector3 position)
     {
         float lastRadius = 0f;
         float thisRadius;
@@ -509,11 +510,13 @@ public static class Snippet
     /// <param name="creature">Creature where the part need to be targeted</param>
     /// <param name="mask">Mask Apply (write it in binary : 0b00011111111111) : 1 means get the part, 0 means don't get the part : in the order of the bit from left to right : 
     /// Tail, RightWing, LeftWing, RightFoot, LeftFoot, RightLeg, LeftLeg, RightHand, LeftHand, RightArm, LeftArm, Torso, Neck, Head</param>
+    /// <returns></returns>
     public static RagdollPart GetRandomRagdollPart(this Creature creature, int mask = 0b00011111111111)
     {
         List<RagdollPart> ragdollParts = new List<RagdollPart>();
-        foreach (RagdollPart part in creature.ragdoll.parts)
+        for (int i = 0; i < creature.ragdoll.parts.Count; i++)
         {
+            RagdollPart part = creature.ragdoll.parts[i];
             if ((mask & (int)part.type) > 0)
                 ragdollParts.Add(part);
         }
@@ -590,6 +593,11 @@ public static class Snippet
             return bluntDamager;
         else
             return null;
+    }
+
+    public static float SetAxisLocalPositionOfHandle(this Handle handle, float value)
+    {
+        return value * (handle.axisLength * 0.5f);
     }
 
     public static Vector3 FromToDirection(this Vector3 from, Vector3 to)
@@ -776,7 +784,7 @@ public static class Snippet
     /// <param name="massScale">Mass scaling, the bigger the less the target rigidbody will matter</param>
     /// <param name="limitMotion">Limit the motion</param>
     /// <returns></returns>
-    public static ConfigurableJoint StrongJointFixed(Rigidbody source, Rigidbody target, float massScale = 30f, float springPos = 2000f, float damperPos = 40f, float forcePos = 100f, float springRot = 1000f, float damperRot = 40f, float forceRot = 100f,  bool limitMotion = false, bool lockMotion = false)
+    public static ConfigurableJoint StrongJointFixed(Rigidbody source, Rigidbody target, float massScale = 30f, float springPos = 2000f, float damperPos = 40f, float forcePos = 100f, float springRot = 1000f, float damperRot = 40f, float forceRot = 100f, bool limitMotion = false, bool lockMotion = false)
     {
         ConfigurableJoint joint;
         joint = target.gameObject.AddComponent<ConfigurableJoint>();
@@ -1232,6 +1240,31 @@ public static class Snippet
         return gameObjects;
     }
 
+    public static IEnumerable<GameObject> GetGameObjectsParentOfGameObject(this GameObject gameObject, bool allInactive = true, bool deepLevels = false)
+    {
+        List<GameObject> gameObjects = new List<GameObject>();
+        if (deepLevels)
+        {
+            List<Transform> transforms = gameObject?.GetComponentsInParent<Transform>(allInactive).ToList();
+            foreach (Transform t in transforms)
+            {
+                gameObjects.Add(t.gameObject);
+            }
+        }
+        else
+        {
+            if (gameObject.transform.parent)
+            {
+                // Grab only the actives
+                if (gameObject.transform.parent.gameObject.activeSelf || allInactive)
+                {
+                    gameObjects.Add(gameObject.transform.parent.gameObject);
+                }
+            }
+        }
+        return gameObjects;
+    }
+
 
     public static void listAllGameObjectsChildrenOfGameObjectAndComponents(this GameObject gameObject, bool allInactive = true, bool deepLevels = false)
     {
@@ -1239,7 +1272,7 @@ public static class Snippet
         DebugLog($"Gameobject parent {i} {gameObject.name}", true, "yellow");
         foreach (GameObject go in GetGameObjectsChildrenOfGameObject(gameObject, allInactive, deepLevels))
         {
-            DebugLog($"Gameobject {i} {go.name} of parent : {gameObject.name}", true, go.activeInHierarchy ? "cyan" : "red");
+            DebugLog($"Gameobject {i} {go.name} of parent : {(go.transform.parent ? go.transform.parent.gameObject.name : "")}", true, go.activeInHierarchy ? "cyan" : "red");
             int j = 0;
             foreach (Component component in GetComponentsOfGameObject(go, allInactive))
             {
@@ -1256,12 +1289,40 @@ public static class Snippet
         DebugLog($"Gameobject parent {i} {gameObject.name}", true, "yellow");
         foreach (GameObject go in GetGameObjectsChildrenOfGameObject(gameObject, allInactive, deepLevels))
         {
-            DebugLog($"Gameobject {i} {go.name} of parent : {gameObject.name}", true, go.activeInHierarchy ? "cyan" : "red");
+            DebugLog($"Gameobject {i} {go.name} of parent : {(go.transform.parent ? go.transform.parent.gameObject.name : "")}", true, go.activeInHierarchy ? "cyan" : "red");
+            i++;
+        }
+    }
+    public static void listAllGameObjectsParentOfGameObject(this GameObject gameObject, bool allInactive = true, bool deepLevels = false)
+    {
+        int i = 0;
+        DebugLog($"Gameobject child {i} {gameObject.name}", true, "yellow");
+        List<GameObject> list = GetGameObjectsParentOfGameObject(gameObject, allInactive, deepLevels).ToList();
+        for (int j = 0; j < list.Count - 1; j++)
+        {
+            DebugLog($"Gameobject {i} {list[j + 1].name} parent of : {list[j].name}", true, list[j + 1].activeInHierarchy ? "cyan" : "red");
             i++;
         }
     }
 
-    private static IEnumerable<Component> GetComponentsOfGameObject(this GameObject gameObject, bool allInactive, bool deepLevels = false)
+    public static void listAllGameObjectsParentsOfGameObjectAndComponents(this GameObject gameObject, bool allInactive = true, bool deepLevels = false)
+    {
+        int i = 0;
+        DebugLog($"Gameobject child {i} {gameObject.name}", true, "yellow");
+        foreach (GameObject go in GetGameObjectsParentOfGameObject(gameObject, allInactive, deepLevels))
+        {
+            DebugLog($"Gameobject {i} {go.name} of parent : {(go.transform.parent ? go.transform.parent.gameObject.name : "")}", true, go.activeInHierarchy ? "cyan" : "red");
+            int j = 0;
+            foreach (Component component in GetComponentsOfGameObject(go, allInactive))
+            {
+                DebugLog($"Gameobject {i} {go.name} : Component {j} of {component.name}; Type : {component.GetType()}", true, component.gameObject.activeInHierarchy ? "lime" : "#af0000ff");
+                j++;
+            }
+            i++;
+        }
+    }
+
+    public static IEnumerable<Component> GetComponentsOfGameObject(this GameObject gameObject, bool allInactive, bool deepLevels = false)
     {
         return allInactive ? gameObject.GetComponents(typeof(Component)) : gameObject.GetComponents(typeof(Component)).Where(component => component.gameObject.activeSelf);
     }
@@ -1286,21 +1347,16 @@ public static class Snippet
             listAllComponentsOfGameObject(gameObject);
         }
     }
-
-    public static IEnumerable<GameObject> listAllGameObject()
+    /// <summary>
+    /// Finds and returns objects of a specific type within the Unity scene.
+    /// </summary>
+    /// <typeparam name="T">The type of objects to search for (must derive from Component).</typeparam>
+    /// <returns>An IEnumerable containing all objects of the specified type found in the scene.</returns>
+    public static IEnumerable<T> FindObjectsOfType<T>() where T : Component
     {
-        return GameObject.FindObjectsOfType<GameObject>();
+        return UnityEngine.Object.FindObjectsOfType<T>();
     }
 
-    // Need to find a solution for that
-    public static IEnumerable<T> ListOfType<T>()
-    {
-        return GameObject.FindObjectsOfType(typeof(T)) as IEnumerable<T>;
-    }
-    public static IEnumerable<string> ListShaders<T>()
-    {
-        return null;
-    }
     public static IEnumerable<Light> LightInARadius(this Vector3 position, float radius)
     {
         return GameObject.FindObjectsOfType<Light>().Where(item => (item.transform.position - position).sqrMagnitude < radius * radius);
@@ -1531,7 +1587,7 @@ public static class Snippet
         return lastItem;
     }
 
-    public static Item FarestItemInListFromPosition(this List<Item> items, Vector3 position)
+    public static Item FarthestItemInListFromPosition(this List<Item> items, Vector3 position)
     {
         float lastRadius = 0f;
         float thisRadius;
@@ -1548,7 +1604,7 @@ public static class Snippet
         return lastItem;
     }
 
-    public static Item FarestItemInConeRadius(this Vector3 position, float radius, Vector3 directionOfCone, float angleOfCone, bool targetFlyingItem = true, bool targetThrownItem = true, Item itemToExclude = null)
+    public static Item FarthestItemInConeRadius(this Vector3 position, float radius, Vector3 directionOfCone, float angleOfCone, bool targetFlyingItem = true, bool targetThrownItem = true, Item itemToExclude = null)
     {
         Collider[] colliders = Physics.OverlapSphere(position, radius, Physics.DefaultRaycastLayers, QueryTriggerInteraction.Ignore);
         List<Item> itemsList = new List<Item>();
@@ -1621,6 +1677,35 @@ public static class Snippet
             return lastCollider.attachedRigidbody.GetComponent<CollisionHandler>().item;
         }
     }
+    public static Item ClosestItemAroundOverlapSphere(this Vector3 position, float radius)
+    {
+        float lastRadius = Mathf.Infinity;
+        Collider lastCollider = null;
+        float thisRadius;
+
+        Collider[] colliders = Physics.OverlapSphere(position, radius, Physics.DefaultRaycastLayers, QueryTriggerInteraction.Ignore);
+        List<Item> itemsList = new List<Item>();
+        foreach (Collider collider in colliders)
+        {
+            if (collider.attachedRigidbody?.GetComponent<CollisionHandler>()?.item is Item item)
+            {
+                thisRadius = (collider.ClosestPoint(position) - position).sqrMagnitude;
+                if (thisRadius < radius * radius && thisRadius < lastRadius)
+                {
+                    lastRadius = thisRadius;
+                    lastCollider = collider;
+                }
+            }
+        }
+        if (lastCollider?.attachedRigidbody?.GetComponent<CollisionHandler>().item == null)
+        {
+            return null;
+        }
+        else
+        {
+            return lastCollider.attachedRigidbody.GetComponent<CollisionHandler>().item;
+        }
+    }
 
 
     public static RagdollPart ClosestRagdollPartAroundItemOverlapSphere(this Item thisItem, float radius, bool targetPlayer = false)
@@ -1678,14 +1763,14 @@ public static class Snippet
     }
 
     /// <summary>
-    /// Get the farestRagdollPart of a creature
+    /// Get the farthestRagdollPart of a creature
     /// </summary>
     /// <param name="origin">Origin position</param>
     /// <param name="creature">Creature where the part need to be targeted</param>
     /// <param name="mask">Mask Apply (write it in binary : 0b00011111111111) : 1 means get the part, 0 means don't get the part : in the order of the bit from left to right : 
     /// Tail, RightWing, LeftWing, RightFoot, LeftFoot, RightLeg, LeftLeg, RightHand, LeftHand, RightArm, LeftArm, Torso, Neck, Head</param>
     /// <param name="partToExclude">Part to exclude in case it's the same part (for random case)</param>
-    public static RagdollPart FarestRagdollPart(this Vector3 origin, Creature creature, int mask = 0b00011111111111, RagdollPart partToExclude = null)
+    public static RagdollPart FarthestRagdollPart(this Vector3 origin, Creature creature, int mask = 0b00011111111111, RagdollPart partToExclude = null)
     {
         float lastRadius = 0f;
         float thisRadius;
@@ -2286,15 +2371,21 @@ public static class Snippet
         }
         return holder;
     }
-    public static void DebugLog(string text, bool useColor = false, string color = "white")
+    public static void DebugLog(string text, bool useColor = false, string color = "white", bool isWarning = false, bool isError = false)
     {
         if (useColor)
         {
-            Debug.Log($"<color={color}>{text}</color> <color=orange>{DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss.ffff")}</color>");
+            string message = $"<color={color}>{text}</color> <color=orange>{DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss.ffff")}</color>";
+            if (isError) { Debug.LogError(message); }
+            else if (isWarning) { Debug.LogWarning(message); }
+            else { Debug.Log(message); }
         }
         else
         {
-            Debug.Log($"{text} {DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss.ffff")}");
+            string message = $"{text} {DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss.ffff")}";
+            if (isError) { Debug.LogError(message); }
+            else if (isWarning) { Debug.LogWarning(message); }
+            else { Debug.Log(message); }
         }
     }
 
